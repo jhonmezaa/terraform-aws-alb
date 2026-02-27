@@ -104,6 +104,8 @@ resource "aws_lb_listener_rule" "this" {
         session_cookie_name        = lookup(action.value, "session_cookie_name", null)
         session_timeout            = lookup(action.value, "session_timeout", null)
         on_unauthenticated_request = lookup(action.value, "on_unauthenticated_request", null)
+
+        authentication_request_extra_params = lookup(action.value, "authentication_request_extra_params", null)
       }
     }
   }
@@ -127,6 +129,8 @@ resource "aws_lb_listener_rule" "this" {
         session_cookie_name        = lookup(action.value, "session_cookie_name", null)
         session_timeout            = lookup(action.value, "session_timeout", null)
         on_unauthenticated_request = lookup(action.value, "on_unauthenticated_request", null)
+
+        authentication_request_extra_params = lookup(action.value, "authentication_request_extra_params", null)
       }
     }
   }

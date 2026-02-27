@@ -132,12 +132,7 @@ resource "aws_lb_listener" "this" {
         session_timeout            = lookup(default_action.value, "session_timeout", null)
         on_unauthenticated_request = lookup(default_action.value, "on_unauthenticated_request", null)
 
-        dynamic "authentication_request_extra_params" {
-          for_each = lookup(default_action.value, "authentication_request_extra_params", null) != null ? [default_action.value.authentication_request_extra_params] : []
-
-          content {
-          }
-        }
+        authentication_request_extra_params = lookup(default_action.value, "authentication_request_extra_params", null)
       }
     }
   }
@@ -164,12 +159,7 @@ resource "aws_lb_listener" "this" {
         session_timeout            = lookup(default_action.value, "session_timeout", null)
         on_unauthenticated_request = lookup(default_action.value, "on_unauthenticated_request", null)
 
-        dynamic "authentication_request_extra_params" {
-          for_each = lookup(default_action.value, "authentication_request_extra_params", null) != null ? [default_action.value.authentication_request_extra_params] : []
-
-          content {
-          }
-        }
+        authentication_request_extra_params = lookup(default_action.value, "authentication_request_extra_params", null)
       }
     }
   }
