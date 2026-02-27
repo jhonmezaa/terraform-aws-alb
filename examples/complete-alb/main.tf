@@ -4,14 +4,14 @@
 # Creates a production-ready ALB with:
 # - HTTPS listener with SSL certificate
 # - HTTP to HTTPS redirect
-# - Weighted target groups
+# - Weighted target groups (90/10 canary)
 # - Listener rules with path-based routing
 # - Fixed response for health checks
+# - Cognito authentication (with authentication_request_extra_params)
+# - OIDC authentication (with authentication_request_extra_params)
 # - Route53 DNS record
-# - WAF association placeholder
-# - Access logging
 # - Managed security group
-# - CORS headers
+# - CORS and security headers
 # =============================================================================
 
 module "alb" {
@@ -213,6 +213,78 @@ module "alb" {
             {
               path_pattern = {
                 values = ["/alb-health"]
+              }
+            }
+          ]
+        }
+
+        # Cognito-authenticated route
+        cognito-protected = {
+          priority = 300
+
+          actions = [
+            {
+              type                = "authenticate_cognito"
+              order               = 1
+              user_pool_arn       = var.cognito_user_pool_arn
+              user_pool_client_id = var.cognito_user_pool_client_id
+              user_pool_domain    = var.cognito_user_pool_domain
+              scope               = "openid email"
+
+              # Extra params passed to the Cognito authorization endpoint
+              authentication_request_extra_params = {
+                prompt = "login"
+              }
+            },
+            {
+              type             = "forward"
+              order            = 2
+              target_group_key = "web-primary"
+            }
+          ]
+
+          conditions = [
+            {
+              path_pattern = {
+                values = ["/dashboard/*", "/admin/*"]
+              }
+            }
+          ]
+        }
+
+        # OIDC-authenticated route
+        oidc-protected = {
+          priority = 400
+
+          actions = [
+            {
+              type                   = "authenticate_oidc"
+              order                  = 1
+              authorization_endpoint = "${var.oidc_issuer}/authorize"
+              client_id              = var.oidc_client_id
+              client_secret          = var.oidc_client_secret
+              issuer                 = var.oidc_issuer
+              token_endpoint         = "${var.oidc_issuer}/oauth/token"
+              user_info_endpoint     = "${var.oidc_issuer}/userinfo"
+              scope                  = "openid email profile"
+
+              # Extra params passed to the OIDC authorization endpoint
+              authentication_request_extra_params = {
+                prompt   = "consent"
+                audience = "https://api.example.com"
+              }
+            },
+            {
+              type             = "forward"
+              order            = 2
+              target_group_key = "api"
+            }
+          ]
+
+          conditions = [
+            {
+              path_pattern = {
+                values = ["/secure/*"]
               }
             }
           ]

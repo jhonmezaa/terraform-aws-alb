@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.0.4] - 2026-02-27
+
+### Changed
+- Update complete-alb example with Cognito and OIDC authentication listener rules demonstrating `authentication_request_extra_params`
+
+
 ## [v1.0.3] - 2026-02-27
 
 ### Fixed
