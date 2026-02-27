@@ -37,6 +37,37 @@ variable "domain_name" {
   default     = null
 }
 
+variable "cognito_user_pool_arn" {
+  description = "ARN of the Cognito User Pool."
+  type        = string
+}
+
+variable "cognito_user_pool_client_id" {
+  description = "Client ID of the Cognito User Pool App Client."
+  type        = string
+}
+
+variable "cognito_user_pool_domain" {
+  description = "Domain of the Cognito User Pool."
+  type        = string
+}
+
+variable "oidc_issuer" {
+  description = "OIDC issuer URL."
+  type        = string
+}
+
+variable "oidc_client_id" {
+  description = "OIDC client ID."
+  type        = string
+}
+
+variable "oidc_client_secret" {
+  description = "OIDC client secret."
+  type        = string
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Additional tags."
   type        = map(string)
