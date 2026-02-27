@@ -1,5 +1,12 @@
 # Changelog
 
+## [v1.0.3] - 2026-02-27
+
+### Fixed
+- Fix `authentication_request_extra_params` in listeners: replace empty dynamic blocks with direct `map(string)` attribute for Cognito and OIDC actions
+- Add missing `authentication_request_extra_params` attribute to Cognito and OIDC actions in listener rules
+- Update README.md version requirements to match actual module constraints
+
 ## [v1.0.2] - 2026-02-27
 
 ### Changed
