@@ -3,17 +3,19 @@
 ## [v1.0.5] - 2026-02-28
 
 ### Fixed
+
 - Security group ingress/egress rules now auto-null `from_port` and `to_port` when `ip_protocol = "-1"` (all protocols), preventing AWS API errors
 
 ## [v1.0.4] - 2026-02-27
 
 ### Changed
-- Update complete-alb example with Cognito and OIDC authentication listener rules demonstrating `authentication_request_extra_params`
 
+- Update complete-alb example with Cognito and OIDC authentication listener rules demonstrating `authentication_request_extra_params`
 
 ## [v1.0.3] - 2026-02-27
 
 ### Fixed
+
 - Fix `authentication_request_extra_params` in listeners: replace empty dynamic blocks with direct `map(string)` attribute for Cognito and OIDC actions
 - Add missing `authentication_request_extra_params` attribute to Cognito and OIDC actions in listener rules
 - Update README.md version requirements to match actual module constraints
@@ -21,14 +23,14 @@
 ## [v1.0.2] - 2026-02-27
 
 ### Changed
-- Standardize Terraform `required_version` to `~> 1.0` across module and examples
 
+- Standardize Terraform `required_version` to `~> 1.0` across module and examples
 
 ## [v1.0.1] - 2026-02-27
 
 ### Changed
-- Update AWS provider constraint to `~> 6.0` across module and examples
 
+- Update AWS provider constraint to `~> 6.0` across module and examples
 
 All notable changes to this project will be documented in this file.
 

@@ -5,11 +5,13 @@ Terraform module to create AWS Elastic Load Balancers (ALB, NLB, GWLB) with list
 ## Features
 
 ### Load Balancer Types
+
 - **Application Load Balancer (ALB)** - Layer 7 HTTP/HTTPS routing
 - **Network Load Balancer (NLB)** - Layer 4 TCP/UDP/TLS routing
 - **Gateway Load Balancer (GWLB)** - GENEVE protocol for network appliances
 
 ### Listener Capabilities
+
 - **7 default action types**: forward, weighted forward, redirect, fixed response, authenticate Cognito, authenticate OIDC, JWT validation (planned)
 - **Mutual TLS authentication** with trust store support
 - **Additional SSL certificates** per listener
@@ -18,11 +20,13 @@ Terraform module to create AWS Elastic Load Balancers (ALB, NLB, GWLB) with list
 - **mTLS request headers**: Client certificate, issuer, leaf, serial number, subject, validity, TLS cipher suite, TLS version
 
 ### Listener Rules
+
 - **6 condition types**: host header, path pattern, HTTP header, HTTP request method, query string, source IP
 - **All action types** available in rules (forward, weighted forward, redirect, fixed response, authenticate)
 - **Priority-based** routing
 
 ### Target Groups
+
 - **4 target types**: instance, ip, lambda, alb
 - **Health checks**: configurable interval, threshold, matcher, path, port, protocol, timeout
 - **5 stickiness types**: lb_cookie, app_cookie, source_ip, source_ip_dest_ip, source_ip_dest_ip_proto
@@ -34,6 +38,7 @@ Terraform module to create AWS Elastic Load Balancers (ALB, NLB, GWLB) with list
 - **Proxy protocol v2** support
 
 ### Security
+
 - **Managed security group** with ingress/egress rules (using `aws_vpc_security_group_*_rule`)
 - **WAFv2 Web ACL** association
 - **Deletion protection** (enabled by default)
@@ -41,6 +46,7 @@ Terraform module to create AWS Elastic Load Balancers (ALB, NLB, GWLB) with list
 - **Desync mitigation**: monitor, defensive, strictest modes
 
 ### Networking
+
 - **Cross-zone load balancing** (enabled by default)
 - **Dual-stack IP** support (IPv4 + IPv6)
 - **Subnet mapping** with Elastic IP allocation
@@ -49,11 +55,13 @@ Terraform module to create AWS Elastic Load Balancers (ALB, NLB, GWLB) with list
 - **XFF header processing**: append, preserve, remove
 
 ### Logging
+
 - **Access logs** to S3
 - **Connection logs** to S3
 - **Minimum capacity** pre-provisioning
 
 ### DNS Integration
+
 - **Route53 alias records**: A, AAAA, CNAME
 - **Target health evaluation** per record
 
@@ -66,6 +74,7 @@ Resources follow the standard naming pattern:
 ```
 
 Examples:
+
 - ALB: `ause1-alb-prod-myapp`
 - NLB: `ause1-nlb-prod-myapp`
 - Target Group: `ause1-tg-prod-myapp-web`
@@ -208,53 +217,53 @@ module "nlb" {
 
 ## Requirements
 
-| Name | Version |
-|------|---------|
-| terraform | ~> 1.0 |
-| aws | ~> 6.0 |
+| Name      | Version |
+| --------- | ------- |
+| terraform | ~> 1.0  |
+| aws       | ~> 6.0  |
 
 ## Inputs
 
-| Name | Description | Type | Default |
-|------|-------------|------|---------|
-| `account_name` | Account name for resource naming | `string` | - |
-| `project_name` | Project name for resource naming | `string` | - |
-| `create` | Controls if resources should be created | `bool` | `true` |
-| `name` | Load balancer name (auto-generated if null) | `string` | `null` |
-| `load_balancer_type` | Type: application, network, gateway | `string` | `"application"` |
-| `internal` | Internal load balancer | `bool` | `false` |
-| `subnets` | Subnet IDs | `list(string)` | `null` |
-| `vpc_id` | VPC ID for target groups and security group | `string` | `null` |
-| `listeners` | Map of listener configurations | `any` | `{}` |
-| `target_groups` | Map of target group configurations | `any` | `{}` |
-| `enable_deletion_protection` | Enable deletion protection | `bool` | `true` |
-| `enable_cross_zone_load_balancing` | Enable cross-zone load balancing | `bool` | `true` |
-| `create_security_group` | Create managed security group | `bool` | `true` |
-| `security_group_ingress_rules` | Ingress rules for managed SG | `any` | `{}` |
-| `security_group_egress_rules` | Egress rules for managed SG | `any` | `{}` |
-| `route53_records` | Route53 alias records | `any` | `{}` |
-| `associate_web_acl` | Associate WAFv2 Web ACL | `bool` | `false` |
-| `web_acl_arn` | WAFv2 Web ACL ARN | `string` | `null` |
-| `tags` | Additional tags | `map(string)` | `{}` |
+| Name                               | Description                                 | Type           | Default         |
+| ---------------------------------- | ------------------------------------------- | -------------- | --------------- |
+| `account_name`                     | Account name for resource naming            | `string`       | -               |
+| `project_name`                     | Project name for resource naming            | `string`       | -               |
+| `create`                           | Controls if resources should be created     | `bool`         | `true`          |
+| `name`                             | Load balancer name (auto-generated if null) | `string`       | `null`          |
+| `load_balancer_type`               | Type: application, network, gateway         | `string`       | `"application"` |
+| `internal`                         | Internal load balancer                      | `bool`         | `false`         |
+| `subnets`                          | Subnet IDs                                  | `list(string)` | `null`          |
+| `vpc_id`                           | VPC ID for target groups and security group | `string`       | `null`          |
+| `listeners`                        | Map of listener configurations              | `any`          | `{}`            |
+| `target_groups`                    | Map of target group configurations          | `any`          | `{}`            |
+| `enable_deletion_protection`       | Enable deletion protection                  | `bool`         | `true`          |
+| `enable_cross_zone_load_balancing` | Enable cross-zone load balancing            | `bool`         | `true`          |
+| `create_security_group`            | Create managed security group               | `bool`         | `true`          |
+| `security_group_ingress_rules`     | Ingress rules for managed SG                | `any`          | `{}`            |
+| `security_group_egress_rules`      | Egress rules for managed SG                 | `any`          | `{}`            |
+| `route53_records`                  | Route53 alias records                       | `any`          | `{}`            |
+| `associate_web_acl`                | Associate WAFv2 Web ACL                     | `bool`         | `false`         |
+| `web_acl_arn`                      | WAFv2 Web ACL ARN                           | `string`       | `null`          |
+| `tags`                             | Additional tags                             | `map(string)`  | `{}`            |
 
 See [10-variables.tf](alb/10-variables.tf) for the complete list of variables.
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `lb_id` | Load balancer ID |
-| `lb_arn` | Load balancer ARN |
-| `lb_arn_suffix` | ARN suffix (for CloudWatch Metrics) |
-| `lb_dns_name` | DNS name |
-| `lb_zone_id` | Hosted zone ID (for Route53) |
-| `lb_name` | Load balancer name |
-| `listeners` | Map of all listeners |
-| `listener_rules` | Map of all listener rules |
-| `target_groups` | Map of all target groups |
-| `security_group_id` | Managed security group ID |
-| `security_group_arn` | Managed security group ARN |
-| `route53_records` | Map of Route53 records |
+| Name                 | Description                         |
+| -------------------- | ----------------------------------- |
+| `lb_id`              | Load balancer ID                    |
+| `lb_arn`             | Load balancer ARN                   |
+| `lb_arn_suffix`      | ARN suffix (for CloudWatch Metrics) |
+| `lb_dns_name`        | DNS name                            |
+| `lb_zone_id`         | Hosted zone ID (for Route53)        |
+| `lb_name`            | Load balancer name                  |
+| `listeners`          | Map of all listeners                |
+| `listener_rules`     | Map of all listener rules           |
+| `target_groups`      | Map of all target groups            |
+| `security_group_id`  | Managed security group ID           |
+| `security_group_arn` | Managed security group ARN          |
+| `route53_records`    | Map of Route53 records              |
 
 ## Module Structure
 
