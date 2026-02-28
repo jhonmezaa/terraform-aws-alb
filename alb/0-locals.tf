@@ -49,6 +49,9 @@ locals {
     data.aws_region.current.id
   )
 
+  # Name prefix: includes region prefix with trailing dash, or empty string
+  name_prefix = var.use_region_prefix ? "${local.region_prefix}-" : ""
+
   # =============================================================================
   # Creation Flags
   # =============================================================================
