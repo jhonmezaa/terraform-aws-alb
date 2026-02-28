@@ -5,7 +5,7 @@
 resource "aws_lb_target_group" "this" {
   for_each = { for k, v in var.target_groups : k => v if local.create }
 
-  name        = lookup(each.value, "name", null) != null ? each.value.name : "${local.region_prefix}-tg-${var.account_name}-${var.project_name}-${each.key}"
+  name        = lookup(each.value, "name", null) != null ? each.value.name : substr("${local.region_prefix}-tg-${var.account_name}-${var.project_name}-${each.key}", 0, 32)
   name_prefix = lookup(each.value, "name_prefix", null)
 
   port             = lookup(each.value, "target_type", "instance") == "lambda" ? null : lookup(each.value, "port", var.default_port)
@@ -122,7 +122,7 @@ resource "aws_lb_target_group" "this" {
 
   tags = merge(
     {
-      Name      = lookup(each.value, "name", "${local.region_prefix}-tg-${var.account_name}-${var.project_name}-${each.key}")
+      Name      = lookup(each.value, "name", substr("${local.region_prefix}-tg-${var.account_name}-${var.project_name}-${each.key}", 0, 32))
       ManagedBy = "Terraform"
     },
     var.tags,

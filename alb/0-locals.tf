@@ -67,7 +67,7 @@ locals {
     var.load_balancer_type == "network" ? "nlb" : "gwlb"
   )
 
-  lb_name = var.name != null ? var.name : "${local.region_prefix}-${local.lb_type_prefix}-${var.account_name}-${var.project_name}"
+  lb_name = var.name != null ? var.name : substr("${local.region_prefix}-${local.lb_type_prefix}-${var.account_name}-${var.project_name}", 0, 32)
 
   # Security group naming
   sg_name = var.security_group_name != null ? var.security_group_name : "${local.region_prefix}-sg-${local.lb_type_prefix}-${var.account_name}-${var.project_name}"
