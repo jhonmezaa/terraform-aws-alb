@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.0.5] - 2026-02-28
+
+### Fixed
+- Security group ingress/egress rules now auto-null `from_port` and `to_port` when `ip_protocol = "-1"` (all protocols), preventing AWS API errors
+
 ## [v1.0.4] - 2026-02-27
 
 ### Changed
