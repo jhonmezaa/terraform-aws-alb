@@ -1,5 +1,12 @@
 # Changelog
 
+
+## [v1.0.8] - 2026-04-25
+
+### Changed
+
+- Update README documentation and CHANGELOG formatting
+
 ## [v1.0.5] - 2026-02-28
 
 ### Fixed
