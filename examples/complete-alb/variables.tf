@@ -68,8 +68,26 @@ variable "oidc_client_secret" {
   sensitive   = true
 }
 
-variable "tags" {
-  description = "Additional tags."
+variable "jwt_issuer" {
+  description = "Issuer of the JWTs validated by the jwt-validation rule."
+  type        = string
+  default     = "https://auth.example.com"
+}
+
+variable "jwt_jwks_endpoint" {
+  description = "JWKS endpoint used to validate JWT signatures."
+  type        = string
+  default     = "https://auth.example.com/.well-known/jwks.json"
+}
+
+variable "logs_bucket" {
+  description = "S3 bucket for access, connection and health check logs. Logs are disabled when null."
+  type        = string
+  default     = null
+}
+
+variable "tags_common" {
+  description = "Common tags."
   type        = map(string)
   default = {
     Environment = "prod"

@@ -10,6 +10,10 @@ This example creates a production-ready Application Load Balancer with all featu
 - Route53 A and AAAA alias records
 - Managed security group
 - Cookie-based stickiness
+- Cognito and OIDC authenticated routes
+- JWT validation for machine-to-machine API routes
+- URL and host header rewrite transforms with regex host conditions
+- Optional access, connection and health check logs (`logs_bucket`)
 
 ## Usage
 
@@ -28,5 +32,5 @@ terraform apply
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.5.0 |
-| aws | >= 5.46 |
+| terraform | ~> 1.0 |
+| aws | ~> 6.0 (>= 6.28 recommended) |

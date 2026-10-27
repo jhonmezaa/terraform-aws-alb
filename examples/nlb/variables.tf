@@ -26,8 +26,8 @@ variable "certificate_arn" {
   default     = null
 }
 
-variable "tags" {
-  description = "Additional tags."
+variable "tags_common" {
+  description = "Common tags."
   type        = map(string)
   default = {
     Environment = "prod"

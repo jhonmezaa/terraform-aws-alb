@@ -9,6 +9,9 @@
 # - Fixed response for health checks
 # - Cognito authentication (with authentication_request_extra_params)
 # - OIDC authentication (with authentication_request_extra_params)
+# - JWT validation for API clients
+# - URL / host header rewrite transforms and regex conditions
+# - Access, connection and health check logs (optional)
 # - Route53 DNS record
 # - Managed security group
 # - CORS and security headers
@@ -30,6 +33,20 @@ module "alb" {
   idle_timeout               = 60
   drop_invalid_header_fields = true
   desync_mitigation_mode     = "defensive"
+
+  # Logs (optional)
+  access_logs = var.logs_bucket != null ? {
+    bucket = var.logs_bucket
+    prefix = "access-logs"
+  } : null
+  connection_logs = var.logs_bucket != null ? {
+    bucket = var.logs_bucket
+    prefix = "connection-logs"
+  } : null
+  health_check_logs = var.logs_bucket != null ? {
+    bucket = var.logs_bucket
+    prefix = "health-check-logs"
+  } : null
 
   # Security group
   create_security_group = true
@@ -252,6 +269,85 @@ module "alb" {
           ]
         }
 
+        # JWT-validated machine-to-machine API route
+        jwt-api = {
+          priority = 500
+
+          actions = [
+            {
+              type          = "jwt_validation"
+              order         = 1
+              issuer        = var.jwt_issuer
+              jwks_endpoint = var.jwt_jwks_endpoint
+
+              additional_claim = [
+                {
+                  format = "space-separated-values"
+                  name   = "scope"
+                  values = ["api:read"]
+                }
+              ]
+            },
+            {
+              type             = "forward"
+              order            = 2
+              target_group_key = "api"
+            }
+          ]
+
+          conditions = [
+            {
+              path_pattern = {
+                values = ["/m2m/*"]
+              }
+            }
+          ]
+        }
+
+        # Legacy API version: strip the /v1 prefix and normalize the host header
+        api-v1-rewrite = {
+          priority = 600
+
+          actions = [
+            {
+              type             = "forward"
+              target_group_key = "api"
+            }
+          ]
+
+          conditions = [
+            {
+              host_header = {
+                regex_values = ["^api(-v1)?\\.example\\.com$"]
+              }
+            },
+            {
+              path_pattern = {
+                values = ["/v1/*"]
+              }
+            }
+          ]
+
+          transform = {
+            url-rewrite = {
+              url_rewrite_config = {
+                rewrite = {
+                  regex   = "^/v1/(.*)$"
+                  replace = "/$1"
+                }
+              }
+            }
+            host-header-rewrite = {
+              host_header_rewrite_config = {
+                rewrite = {
+                  regex   = "^api-v1\\.example\\.com$"
+                  replace = "api.example.com"
+                }
+              }
+            }
+          }
+        }
+
         # OIDC-authenticated route
         oidc-protected = {
           priority = 400
@@ -307,5 +403,5 @@ module "alb" {
     }
   } : {}
 
-  tags = var.tags
+  tags_common = var.tags_common
 }

@@ -18,5 +18,5 @@ terraform apply
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.5.0 |
-| aws | >= 5.46 |
+| terraform | ~> 1.0 |
+| aws | ~> 6.0 (>= 6.28 recommended) |
