@@ -1,5 +1,42 @@
 # Changelog
 
+## [v1.1.0] - 2026-10-27
+
+### Added
+
+- Trust stores and revocation lists (`trust_stores` variable, `aws_lb_trust_store` / `aws_lb_trust_store_revocation`); listeners can reference them with `mutual_authentication.trust_store_key`
+- `jwt-validation` action for listener default actions (`jwt_validation`) and listener rules (`type = "jwt_validation"`), including `additional_claim`
+- Listener rule `transform` (host header rewrite and URL rewrite)
+- `regex_values` for `host_header`, `path_pattern` and `http_header` rule conditions
+- Load balancer: `health_check_logs`, `ipam_pools`, `lb_name_prefix`, `enable_prefix_for_ipv6_source_nat`, `secondary_ips_auto_assigned_per_subnet`
+- `region` variable applied to all resources (AWS provider v6 per-resource region); the region prefix is derived from it when set
+- Security groups on NLB: `security_groups` is now passed to network load balancers, and the managed security group can be enabled with `create_network_lb_security_group` (default `false`)
+- `security_group_use_name_prefix` (default `false`) and per-rule `name` for security group rule `Name` tags
+- Target groups: `target_control_port`; attachments: `quic_server_id`
+- `tags_common` variable merged into all resource tags
+- Outputs: `lb_tags_all`, `security_group_name`, `target_group_attachments`, `trust_stores`, `trust_store_arns`, `trust_store_revocations`
+- `mutual-auth-alb` example; `complete-alb` example now shows JWT validation, rewrite transforms, regex conditions and logs
+
+### Changed
+
+- Load balancer, security group and target group names are built from `name_prefix`, so `use_region_prefix = false` is now honored. With the default (`use_region_prefix = true`) generated names are unchanged
+- Truncated names (32 chars) no longer end with a hyphen
+- Without region prefix the managed security group is named `{alb|nlb}-sg-{account_name}-{project_name}` (AWS rejects names starting with `sg-`)
+- `routing_http_response_*` attributes are only set on HTTP/HTTPS listeners and `routing_http_request_*` only on HTTPS listeners
+- GENEVE (GWLB) listeners omit `port` and `protocol`
+- Security group rules default `to_port` to `from_port` (and vice versa) when only one is set
+- Target group attachments now depend on Lambda permissions; additional attachments ignore `port` for Lambda target groups
+- Lifecycle on the load balancer ignores the `elasticbeanstalk:shared-elb-environment-count` tag
+- `tags` is kept for backward compatibility and merged on top of `tags_common`
+
+### Fixed
+
+- Target groups with `name_prefix` no longer also set `name` (conflicting arguments)
+
+### Upgrade notes
+
+- If you used `use_region_prefix = false`, generated names now drop the region prefix: the load balancer, target groups and security group will be **replaced**. Pin the previous names with `name`, `security_group_name` and `target_groups.<key>.name` to avoid it
+- Features listed above require a recent AWS provider; >= 6.28 is recommended
 
 ## [v1.0.8] - 2026-04-25
 
