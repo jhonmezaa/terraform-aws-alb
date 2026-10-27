@@ -55,6 +55,18 @@ All notable changes to this project will be documented in this file.
 
 - Update README documentation and CHANGELOG formatting
 
+## [v1.0.7] - 2026-02-28
+
+### Changed
+
+- Documentation only: reformat README and CHANGELOG (no module code changes)
+
+## [v1.0.6] - 2026-02-28
+
+### Fixed
+
+- Truncate auto-generated load balancer and target group names to 32 characters (AWS limit) with `substr(..., 0, 32)` in `alb/0-locals.tf` and `alb/5-target-groups.tf`, avoiding deployment failures with long `account_name`, `project_name` or target group keys
+
 ## [v1.0.5] - 2026-02-28
 
 ### Fixed
