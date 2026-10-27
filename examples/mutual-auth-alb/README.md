@@ -42,4 +42,4 @@ curl --cert client.pem --key client.key https://<lb_dns_name>/
 | Name | Version |
 |------|---------|
 | terraform | ~> 1.0 |
-| aws | ~> 6.0 (>= 6.28 recommended) |
+| aws | ~> 6.28 |
