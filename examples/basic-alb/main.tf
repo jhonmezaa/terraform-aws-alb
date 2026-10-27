@@ -70,5 +70,5 @@ module "alb" {
     }
   }
 
-  tags = var.tags
+  tags_common = var.tags_common
 }

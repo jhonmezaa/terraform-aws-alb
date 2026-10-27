@@ -20,8 +20,8 @@ variable "public_subnets" {
   type        = list(string)
 }
 
-variable "tags" {
-  description = "Additional tags."
+variable "tags_common" {
+  description = "Common tags."
   type        = map(string)
   default = {
     Environment = "dev"
