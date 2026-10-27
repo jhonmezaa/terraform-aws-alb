@@ -5,6 +5,8 @@
 resource "aws_lb_listener_rule" "this" {
   for_each = { for k, v in local.listener_rules : k => v if local.create }
 
+  region = var.region
+
   listener_arn = lookup(each.value, "listener_arn", null) != null ? each.value.listener_arn : aws_lb_listener.this[each.value.listener_key].arn
   priority     = lookup(each.value, "priority", null)
 
@@ -135,6 +137,31 @@ resource "aws_lb_listener_rule" "this" {
     }
   }
 
+  # JWT validation action
+  dynamic "action" {
+    for_each = [for action in lookup(each.value, "actions", []) : action if lookup(action, "type", "") == "jwt_validation"]
+
+    content {
+      type  = "jwt-validation"
+      order = lookup(action.value, "order", null)
+
+      jwt_validation {
+        issuer        = action.value.issuer
+        jwks_endpoint = action.value.jwks_endpoint
+
+        dynamic "additional_claim" {
+          for_each = lookup(action.value, "additional_claim", null) != null ? action.value.additional_claim : []
+
+          content {
+            format = additional_claim.value.format
+            name   = additional_claim.value.name
+            values = additional_claim.value.values
+          }
+        }
+      }
+    }
+  }
+
   # ---------------------------------------------------------------------------
   # Conditions
   # ---------------------------------------------------------------------------
@@ -148,7 +175,8 @@ resource "aws_lb_listener_rule" "this" {
         for_each = lookup(condition.value, "host_header", null) != null ? [condition.value.host_header] : []
 
         content {
-          values = host_header.value.values
+          values       = lookup(host_header.value, "values", null)
+          regex_values = lookup(host_header.value, "regex_values", null)
         }
       }
 
@@ -157,7 +185,8 @@ resource "aws_lb_listener_rule" "this" {
         for_each = lookup(condition.value, "path_pattern", null) != null ? [condition.value.path_pattern] : []
 
         content {
-          values = path_pattern.value.values
+          values       = lookup(path_pattern.value, "values", null)
+          regex_values = lookup(path_pattern.value, "regex_values", null)
         }
       }
 
@@ -167,7 +196,8 @@ resource "aws_lb_listener_rule" "this" {
 
         content {
           http_header_name = http_header.value.http_header_name
-          values           = http_header.value.values
+          values           = lookup(http_header.value, "values", null)
+          regex_values     = lookup(http_header.value, "regex_values", null)
         }
       }
 
@@ -201,12 +231,54 @@ resource "aws_lb_listener_rule" "this" {
     }
   }
 
+  # ---------------------------------------------------------------------------
+  # Transforms (host header / URL rewrite)
+  # ---------------------------------------------------------------------------
+
+  dynamic "transform" {
+    for_each = lookup(each.value, "transform", null) != null ? each.value.transform : {}
+
+    content {
+      type = lookup(transform.value, "type", null) != null ? transform.value.type : transform.key
+
+      dynamic "host_header_rewrite_config" {
+        for_each = lookup(transform.value, "host_header_rewrite_config", null) != null ? [transform.value.host_header_rewrite_config] : []
+
+        content {
+          dynamic "rewrite" {
+            for_each = lookup(host_header_rewrite_config.value, "rewrite", null) != null ? [host_header_rewrite_config.value.rewrite] : []
+
+            content {
+              regex   = rewrite.value.regex
+              replace = rewrite.value.replace
+            }
+          }
+        }
+      }
+
+      dynamic "url_rewrite_config" {
+        for_each = lookup(transform.value, "url_rewrite_config", null) != null ? [transform.value.url_rewrite_config] : []
+
+        content {
+          dynamic "rewrite" {
+            for_each = lookup(url_rewrite_config.value, "rewrite", null) != null ? [url_rewrite_config.value.rewrite] : []
+
+            content {
+              regex   = rewrite.value.regex
+              replace = rewrite.value.replace
+            }
+          }
+        }
+      }
+    }
+  }
+
   tags = merge(
     {
       Name      = "${local.lb_name}-rule-${each.value.rule_key}"
       ManagedBy = "Terraform"
     },
-    var.tags,
+    local.tags,
     lookup(each.value, "tags", {})
   )
 }

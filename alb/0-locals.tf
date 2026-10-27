@@ -43,10 +43,13 @@ locals {
     "il-central-1" = "ilce1"
   }
 
+  # Effective region: explicit var.region (provider v6 per-resource region) or provider region
+  region = coalesce(var.region, data.aws_region.current.region)
+
   region_prefix = var.region_prefix != null ? var.region_prefix : lookup(
     local.region_prefix_map,
-    data.aws_region.current.id,
-    data.aws_region.current.id
+    local.region,
+    local.region
   )
 
   # Name prefix: includes region prefix with trailing dash, or empty string
@@ -56,8 +59,24 @@ locals {
   # Creation Flags
   # =============================================================================
 
-  create                = var.create
-  create_security_group = local.create && var.create_security_group && var.load_balancer_type == "application"
+  create = var.create
+
+  # Managed SG: always for ALB; opt-in for NLB (SGs can only be added to an NLB at creation time)
+  create_security_group = local.create && var.create_security_group && (
+    var.load_balancer_type == "application" || (var.load_balancer_type == "network" && var.create_network_lb_security_group)
+  )
+
+  # Security groups attached to the LB (user-provided + managed). For NLB, null when empty
+  # so that existing NLBs created without security groups are not replaced.
+  lb_security_groups_list = compact(concat(var.security_groups, local.create_security_group ? [aws_security_group.this[0].id] : []))
+  lb_security_groups      = var.load_balancer_type == "network" && length(local.lb_security_groups_list) == 0 ? null : local.lb_security_groups_list
+
+  # =============================================================================
+  # Tags
+  # =============================================================================
+
+  # var.tags is kept for backward compatibility; it overrides var.tags_common on key conflicts
+  tags = merge(var.tags_common, var.tags)
 
   # =============================================================================
   # Load Balancer Naming
@@ -67,10 +86,58 @@ locals {
     var.load_balancer_type == "network" ? "nlb" : "gwlb"
   )
 
-  lb_name = var.name != null ? var.name : substr("${local.region_prefix}-${local.lb_type_prefix}-${var.account_name}-${var.project_name}", 0, 32)
+  # Truncated to 32 chars (AWS limit); a trailing hyphen left by the truncation is removed
+  lb_name = coalesce(
+    var.name,
+    trimsuffix(substr("${local.name_prefix}${local.lb_type_prefix}-${var.account_name}-${var.project_name}", 0, 32), "-")
+  )
 
-  # Security group naming
-  sg_name = var.security_group_name != null ? var.security_group_name : "${local.region_prefix}-sg-${local.lb_type_prefix}-${var.account_name}-${var.project_name}"
+  # Security group naming. AWS rejects SG names starting with "sg-", so without
+  # region prefix the type goes first: {alb|nlb}-sg-{account_name}-{project_name}
+  sg_name = coalesce(
+    var.security_group_name,
+    var.use_region_prefix
+    ? "${local.name_prefix}sg-${local.lb_type_prefix}-${var.account_name}-${var.project_name}"
+    : "${local.lb_type_prefix}-sg-${var.account_name}-${var.project_name}"
+  )
+
+  # =============================================================================
+  # Target Group Naming
+  # =============================================================================
+
+  target_group_names = {
+    for k, v in var.target_groups : k => coalesce(
+      lookup(v, "name", null),
+      trimsuffix(substr("${local.name_prefix}tg-${var.account_name}-${var.project_name}-${k}", 0, 32), "-")
+    )
+  }
+
+  # =============================================================================
+  # Trust Store Naming
+  # =============================================================================
+
+  trust_store_names = {
+    for k, v in var.trust_stores : k => coalesce(
+      lookup(v, "name", null),
+      trimsuffix(substr("${local.name_prefix}ts-${var.account_name}-${var.project_name}-${k}", 0, 32), "-")
+    )
+  }
+
+  # Flatten trust store revocation lists
+  trust_store_revocations = merge([
+    for ts_key, ts in var.trust_stores : {
+      for rev_key, rev in lookup(ts, "revocation_lists", {}) :
+      "${ts_key}/${rev_key}" => merge(rev, {
+        trust_store_key = ts_key
+      })
+    }
+  ]...)
+
+  # =============================================================================
+  # Listener Protocols
+  # =============================================================================
+
+  listener_protocols = { for k, v in var.listeners : k => lookup(v, "protocol", var.default_protocol) }
 
   # =============================================================================
   # Flatten Listener Rules

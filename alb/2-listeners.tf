@@ -5,15 +5,18 @@
 resource "aws_lb_listener" "this" {
   for_each = { for k, v in var.listeners : k => v if local.create }
 
+  region = var.region
+
   load_balancer_arn = aws_lb.this[0].arn
 
-  port            = lookup(each.value, "port", var.default_port)
-  protocol        = lookup(each.value, "protocol", var.default_protocol)
-  ssl_policy      = contains(["HTTPS", "TLS"], lookup(each.value, "protocol", var.default_protocol)) ? lookup(each.value, "ssl_policy", "ELBSecurityPolicy-TLS13-1-3-2021-06") : null
+  # GWLB (GENEVE) listeners must not set port/protocol
+  port            = local.listener_protocols[each.key] != "GENEVE" ? lookup(each.value, "port", var.default_port) : null
+  protocol        = local.listener_protocols[each.key] != "GENEVE" ? local.listener_protocols[each.key] : null
+  ssl_policy      = contains(["HTTPS", "TLS"], local.listener_protocols[each.key]) ? lookup(each.value, "ssl_policy", "ELBSecurityPolicy-TLS13-1-3-2021-06") : null
   certificate_arn = lookup(each.value, "certificate_arn", null)
   alpn_policy     = lookup(each.value, "alpn_policy", null)
 
-  tcp_idle_timeout_seconds = lookup(each.value, "protocol", var.default_protocol) == "TCP" ? lookup(each.value, "tcp_idle_timeout_seconds", null) : null
+  tcp_idle_timeout_seconds = local.listener_protocols[each.key] == "TCP" ? lookup(each.value, "tcp_idle_timeout_seconds", null) : null
 
   # ---------------------------------------------------------------------------
   # Mutual TLS Authentication
@@ -23,7 +26,7 @@ resource "aws_lb_listener" "this" {
 
     content {
       mode                             = mutual_authentication.value.mode
-      trust_store_arn                  = lookup(mutual_authentication.value, "trust_store_arn", null)
+      trust_store_arn                  = lookup(mutual_authentication.value, "trust_store_key", null) != null ? aws_lb_trust_store.this[mutual_authentication.value.trust_store_key].arn : lookup(mutual_authentication.value, "trust_store_arn", null)
       advertise_trust_store_ca_names   = lookup(mutual_authentication.value, "advertise_trust_store_ca_names", null)
       ignore_client_certificate_expiry = lookup(mutual_authentication.value, "ignore_client_certificate_expiry", null)
     }
@@ -165,40 +168,67 @@ resource "aws_lb_listener" "this" {
   }
 
   # ---------------------------------------------------------------------------
+  # Default Action: JWT Validation
+  # ---------------------------------------------------------------------------
+  dynamic "default_action" {
+    for_each = lookup(each.value, "jwt_validation", null) != null ? [each.value.jwt_validation] : []
+
+    content {
+      type  = "jwt-validation"
+      order = lookup(each.value, "order", null)
+
+      jwt_validation {
+        issuer        = default_action.value.issuer
+        jwks_endpoint = default_action.value.jwks_endpoint
+
+        dynamic "additional_claim" {
+          for_each = lookup(default_action.value, "additional_claim", null) != null ? default_action.value.additional_claim : []
+
+          content {
+            format = additional_claim.value.format
+            name   = additional_claim.value.name
+            values = additional_claim.value.values
+          }
+        }
+      }
+    }
+  }
+
+  # ---------------------------------------------------------------------------
   # mTLS Request Routing Headers (HTTPS only)
   # ---------------------------------------------------------------------------
-  routing_http_request_x_amzn_mtls_clientcert_header_name               = lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_header_name", null)
-  routing_http_request_x_amzn_mtls_clientcert_issuer_header_name        = lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_issuer_header_name", null)
-  routing_http_request_x_amzn_mtls_clientcert_leaf_header_name          = lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_leaf_header_name", null)
-  routing_http_request_x_amzn_mtls_clientcert_serial_number_header_name = lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_serial_number_header_name", null)
-  routing_http_request_x_amzn_mtls_clientcert_subject_header_name       = lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_subject_header_name", null)
-  routing_http_request_x_amzn_mtls_clientcert_validity_header_name      = lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_validity_header_name", null)
-  routing_http_request_x_amzn_tls_cipher_suite_header_name              = lookup(each.value, "routing_http_request_x_amzn_tls_cipher_suite_header_name", null)
-  routing_http_request_x_amzn_tls_version_header_name                   = lookup(each.value, "routing_http_request_x_amzn_tls_version_header_name", null)
+  routing_http_request_x_amzn_mtls_clientcert_header_name               = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_header_name", null) : null
+  routing_http_request_x_amzn_mtls_clientcert_issuer_header_name        = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_issuer_header_name", null) : null
+  routing_http_request_x_amzn_mtls_clientcert_leaf_header_name          = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_leaf_header_name", null) : null
+  routing_http_request_x_amzn_mtls_clientcert_serial_number_header_name = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_serial_number_header_name", null) : null
+  routing_http_request_x_amzn_mtls_clientcert_subject_header_name       = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_subject_header_name", null) : null
+  routing_http_request_x_amzn_mtls_clientcert_validity_header_name      = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_mtls_clientcert_validity_header_name", null) : null
+  routing_http_request_x_amzn_tls_cipher_suite_header_name              = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_tls_cipher_suite_header_name", null) : null
+  routing_http_request_x_amzn_tls_version_header_name                   = local.listener_protocols[each.key] == "HTTPS" ? lookup(each.value, "routing_http_request_x_amzn_tls_version_header_name", null) : null
 
   # ---------------------------------------------------------------------------
   # CORS & Security Response Headers (HTTP/HTTPS only)
   # ---------------------------------------------------------------------------
-  routing_http_response_access_control_allow_credentials_header_value = lookup(each.value, "routing_http_response_access_control_allow_credentials_header_value", null)
-  routing_http_response_access_control_allow_headers_header_value     = lookup(each.value, "routing_http_response_access_control_allow_headers_header_value", null)
-  routing_http_response_access_control_allow_methods_header_value     = lookup(each.value, "routing_http_response_access_control_allow_methods_header_value", null)
-  routing_http_response_access_control_allow_origin_header_value      = lookup(each.value, "routing_http_response_access_control_allow_origin_header_value", null)
-  routing_http_response_access_control_expose_headers_header_value    = lookup(each.value, "routing_http_response_access_control_expose_headers_header_value", null)
-  routing_http_response_access_control_max_age_header_value           = lookup(each.value, "routing_http_response_access_control_max_age_header_value", null)
-  routing_http_response_content_security_policy_header_value          = lookup(each.value, "routing_http_response_content_security_policy_header_value", null)
-  routing_http_response_server_enabled                                = lookup(each.value, "routing_http_response_server_enabled", null)
-  routing_http_response_strict_transport_security_header_value        = lookup(each.value, "routing_http_response_strict_transport_security_header_value", null)
-  routing_http_response_x_content_type_options_header_value           = lookup(each.value, "routing_http_response_x_content_type_options_header_value", null)
-  routing_http_response_x_frame_options_header_value                  = lookup(each.value, "routing_http_response_x_frame_options_header_value", null)
+  routing_http_response_access_control_allow_credentials_header_value = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_access_control_allow_credentials_header_value", null) : null
+  routing_http_response_access_control_allow_headers_header_value     = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_access_control_allow_headers_header_value", null) : null
+  routing_http_response_access_control_allow_methods_header_value     = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_access_control_allow_methods_header_value", null) : null
+  routing_http_response_access_control_allow_origin_header_value      = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_access_control_allow_origin_header_value", null) : null
+  routing_http_response_access_control_expose_headers_header_value    = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_access_control_expose_headers_header_value", null) : null
+  routing_http_response_access_control_max_age_header_value           = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_access_control_max_age_header_value", null) : null
+  routing_http_response_content_security_policy_header_value          = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_content_security_policy_header_value", null) : null
+  routing_http_response_server_enabled                                = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_server_enabled", null) : null
+  routing_http_response_strict_transport_security_header_value        = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_strict_transport_security_header_value", null) : null
+  routing_http_response_x_content_type_options_header_value           = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_x_content_type_options_header_value", null) : null
+  routing_http_response_x_frame_options_header_value                  = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_x_frame_options_header_value", null) : null
 
   tags = merge(
     {
       Name      = "${local.lb_name}-${each.key}"
       ManagedBy = "Terraform"
     },
-    var.tags,
+    local.tags,
     lookup(each.value, "tags", {})
   )
 
-  depends_on = [aws_lb_target_group.this]
+  depends_on = [aws_lb_target_group.this, aws_lb_trust_store.this]
 }

@@ -8,10 +8,16 @@ resource "aws_lb_target_group_attachment" "this" {
     if local.create && lookup(v, "target_id", null) != null && lookup(v, "create_attachment", true)
   }
 
+  region = var.region
+
   target_group_arn  = aws_lb_target_group.this[each.key].arn
   target_id         = each.value.target_id
   port              = lookup(each.value, "target_type", "instance") == "lambda" ? null : lookup(each.value, "port", null)
   availability_zone = lookup(each.value, "availability_zone", null)
+  quic_server_id    = lookup(each.value, "quic_server_id", null)
+
+  # Lambda targets require the invoke permission before registration
+  depends_on = [aws_lambda_permission.this]
 }
 
 # =============================================================================
@@ -21,10 +27,19 @@ resource "aws_lb_target_group_attachment" "this" {
 resource "aws_lb_target_group_attachment" "additional" {
   for_each = { for k, v in local.additional_tg_attachments : k => v if local.create }
 
-  target_group_arn  = aws_lb_target_group.this[each.value.target_group_key].arn
-  target_id         = each.value.target_id
-  port              = lookup(each.value, "port", null)
+  region = var.region
+
+  target_group_arn = aws_lb_target_group.this[each.value.target_group_key].arn
+  target_id        = each.value.target_id
+  port = lookup(
+    each.value,
+    "target_type",
+    lookup(var.target_groups[each.value.target_group_key], "target_type", "instance")
+  ) == "lambda" ? null : lookup(each.value, "port", null)
   availability_zone = lookup(each.value, "availability_zone", null)
+  quic_server_id    = lookup(each.value, "quic_server_id", null)
+
+  depends_on = [aws_lambda_permission.this]
 }
 
 # =============================================================================
@@ -33,6 +48,8 @@ resource "aws_lb_target_group_attachment" "additional" {
 
 resource "aws_lambda_permission" "this" {
   for_each = { for k, v in local.lambda_target_groups : k => v if local.create }
+
+  region = var.region
 
   function_name = each.value.target_id
   qualifier     = lookup(each.value, "lambda_qualifier", null)
