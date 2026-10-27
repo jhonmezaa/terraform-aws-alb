@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.1.1] - 2026-10-27
+
+### Changed
+
+- Use minimum-only version constraints in the module (`alb/`): AWS provider `~> 6.28` -> `>= 6.28`, so callers are not blocked from newer major provider versions
+- Set module `required_version` to `>= 1.3` (was `~> 1.0`): the minimum real Terraform version, since variables use `optional()` object attributes with defaults (Terraform 1.3+)
+- Examples (root modules) keep pessimistic constraints: `required_version` `~> 1.3`, AWS provider `~> 6.28`
+- Update requirements tables in the root README and example READMEs
+
 ## [v1.1.0] - 2026-10-27
 
 ### Added
