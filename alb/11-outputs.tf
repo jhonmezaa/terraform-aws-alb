@@ -32,6 +32,11 @@ output "lb_name" {
   value       = try(aws_lb.this[0].name, null)
 }
 
+output "lb_tags_all" {
+  description = "All tags of the load balancer, including those inherited from the provider default_tags."
+  value       = try(aws_lb.this[0].tags_all, {})
+}
+
 # =============================================================================
 # Listener Outputs
 # =============================================================================
@@ -73,6 +78,11 @@ output "security_group_arn" {
   value       = try(aws_security_group.this[0].arn, null)
 }
 
+output "security_group_name" {
+  description = "The name of the managed security group."
+  value       = try(aws_security_group.this[0].name, null)
+}
+
 # =============================================================================
 # Route53 Outputs
 # =============================================================================
@@ -80,4 +90,35 @@ output "security_group_arn" {
 output "route53_records" {
   description = "Map of Route53 records created."
   value       = aws_route53_record.this
+}
+
+# =============================================================================
+# Target Group Attachment Outputs
+# =============================================================================
+
+output "target_group_attachments" {
+  description = "Map of primary and additional target group attachments created."
+  value = {
+    primary    = aws_lb_target_group_attachment.this
+    additional = aws_lb_target_group_attachment.additional
+  }
+}
+
+# =============================================================================
+# Trust Store Outputs
+# =============================================================================
+
+output "trust_stores" {
+  description = "Map of trust stores created and their attributes."
+  value       = aws_lb_trust_store.this
+}
+
+output "trust_store_arns" {
+  description = "Map of trust store keys to ARNs."
+  value       = { for k, v in aws_lb_trust_store.this : k => v.arn }
+}
+
+output "trust_store_revocations" {
+  description = "Map of trust store revocation lists created and their attributes."
+  value       = aws_lb_trust_store_revocation.this
 }
