@@ -1,5 +1,7 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
 ## [v1.1.1] - 2026-10-27
 
 ### Changed
@@ -85,9 +87,7 @@
 
 - Update AWS provider constraint to `~> 6.0` across module and examples
 
-All notable changes to this project will be documented in this file.
-
-## [1.0.0] - 2026-02-27
+## [v1.0.0] - 2026-02-27
 
 ### Added
 
