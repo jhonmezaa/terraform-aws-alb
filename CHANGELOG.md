@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.1.2] - 2026-10-27
+
+### Changed
+
+- Docs: normalize CHANGELOG format: move the preamble below the title, use `## [vX.Y.Z] - YYYY-MM-DD` headings for all entries, and add the missing `v1.0.6` and `v1.0.7` entries reconstructed from git history
+
 ## [v1.1.1] - 2026-10-27
 
 ### Changed
