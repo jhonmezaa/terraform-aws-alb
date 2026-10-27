@@ -33,4 +33,4 @@ terraform apply
 | Name | Version |
 |------|---------|
 | terraform | ~> 1.0 |
-| aws | ~> 6.0 (>= 6.28 recommended) |
+| aws | ~> 6.28 |

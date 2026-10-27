@@ -36,7 +36,7 @@
 ### Upgrade notes
 
 - If you used `use_region_prefix = false`, generated names now drop the region prefix: the load balancer, target groups and security group will be **replaced**. Pin the previous names with `name`, `security_group_name` and `target_groups.<key>.name` to avoid it
-- Features listed above require a recent AWS provider; >= 6.28 is recommended
+- AWS provider constraint raised from `~> 6.0` to `~> 6.28` (>= 6.28, < 7.0), required by the features listed above. Run `terraform init -upgrade` if your lock file pins an older 6.x
 
 ## [v1.0.8] - 2026-04-25
 
