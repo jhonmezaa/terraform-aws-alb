@@ -309,10 +309,10 @@ rules = {
 
 | Name      | Version |
 | --------- | ------- |
-| terraform | ~> 1.0  |
-| aws       | ~> 6.28 |
+| terraform | >= 1.3  |
+| aws       | >= 6.28 |
 
-Features added in v1.1.0 (JWT validation, rule transforms, `regex_values`, health check logs, IPAM pools, NLB secondary IPs, target control port) rely on recent provider releases; the module requires AWS provider **~> 6.28** (>= 6.28, < 7.0).
+Features added in v1.1.0 (JWT validation, rule transforms, `regex_values`, health check logs, IPAM pools, NLB secondary IPs, target control port) rely on recent provider releases; the module requires AWS provider **>= 6.28**.
 
 ## Inputs
 
