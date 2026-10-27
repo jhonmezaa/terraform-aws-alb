@@ -5,7 +5,10 @@
 resource "aws_lb_target_group" "this" {
   for_each = { for k, v in var.target_groups : k => v if local.create }
 
-  name        = lookup(each.value, "name", null) != null ? each.value.name : substr("${local.region_prefix}-tg-${var.account_name}-${var.project_name}-${each.key}", 0, 32)
+  region = var.region
+
+  # name and name_prefix are mutually exclusive
+  name        = lookup(each.value, "name_prefix", null) != null ? null : local.target_group_names[each.key]
   name_prefix = lookup(each.value, "name_prefix", null)
 
   port             = lookup(each.value, "target_type", "instance") == "lambda" ? null : lookup(each.value, "port", var.default_port)
@@ -28,6 +31,9 @@ resource "aws_lb_target_group" "this" {
   # Proxy
   proxy_protocol_v2  = lookup(each.value, "proxy_protocol_v2", null)
   preserve_client_ip = lookup(each.value, "preserve_client_ip", null)
+
+  # Target control (agent-based health/control port)
+  target_control_port = lookup(each.value, "target_control_port", null)
 
   # Lambda
   lambda_multi_value_headers_enabled = lookup(each.value, "target_type", "instance") == "lambda" ? lookup(each.value, "lambda_multi_value_headers_enabled", null) : null
@@ -122,10 +128,10 @@ resource "aws_lb_target_group" "this" {
 
   tags = merge(
     {
-      Name      = lookup(each.value, "name", substr("${local.region_prefix}-tg-${var.account_name}-${var.project_name}-${each.key}", 0, 32))
+      Name      = local.target_group_names[each.key]
       ManagedBy = "Terraform"
     },
-    var.tags,
+    local.tags,
     lookup(each.value, "tags", {})
   )
 }

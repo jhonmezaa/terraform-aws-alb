@@ -5,13 +5,16 @@
 resource "aws_lb" "this" {
   count = local.create ? 1 : 0
 
-  name               = local.lb_name
+  region = var.region
+
+  name               = var.lb_name_prefix != null ? null : local.lb_name
+  name_prefix        = var.lb_name_prefix
   load_balancer_type = var.load_balancer_type
   internal           = var.internal
 
   # Network
   subnets                          = var.subnets
-  security_groups                  = var.load_balancer_type == "application" ? compact(concat(var.security_groups, local.create_security_group ? [aws_security_group.this[0].id] : [])) : null
+  security_groups                  = contains(["application", "network"], var.load_balancer_type) ? local.lb_security_groups : null
   ip_address_type                  = var.ip_address_type
   customer_owned_ipv4_pool         = var.customer_owned_ipv4_pool
   enable_cross_zone_load_balancing = var.enable_cross_zone_load_balancing
@@ -48,6 +51,10 @@ resource "aws_lb" "this" {
   # PrivateLink (NLB)
   enforce_security_group_inbound_rules_on_private_link_traffic = var.load_balancer_type == "network" ? var.enforce_security_group_inbound_rules_on_private_link_traffic : null
 
+  # IPv6 source NAT & secondary IPs (NLB)
+  enable_prefix_for_ipv6_source_nat      = var.load_balancer_type == "network" ? var.enable_prefix_for_ipv6_source_nat : null
+  secondary_ips_auto_assigned_per_subnet = var.load_balancer_type == "network" ? var.secondary_ips_auto_assigned_per_subnet : null
+
   # Subnet mapping
   dynamic "subnet_mapping" {
     for_each = var.subnet_mapping != null ? var.subnet_mapping : []
@@ -82,6 +89,26 @@ resource "aws_lb" "this" {
     }
   }
 
+  # Health check logs (ALB)
+  dynamic "health_check_logs" {
+    for_each = var.health_check_logs != null && var.load_balancer_type == "application" ? [var.health_check_logs] : []
+
+    content {
+      bucket  = health_check_logs.value.bucket
+      enabled = lookup(health_check_logs.value, "enabled", true)
+      prefix  = lookup(health_check_logs.value, "prefix", null)
+    }
+  }
+
+  # IPAM pools
+  dynamic "ipam_pools" {
+    for_each = var.ipam_pools != null ? [var.ipam_pools] : []
+
+    content {
+      ipv4_ipam_pool_id = ipam_pools.value.ipv4_ipam_pool_id
+    }
+  }
+
   # Minimum capacity
   dynamic "minimum_load_balancer_capacity" {
     for_each = var.minimum_load_balancer_capacity != null ? [var.minimum_load_balancer_capacity] : []
@@ -106,6 +133,12 @@ resource "aws_lb" "this" {
       Name      = local.lb_name
       ManagedBy = "Terraform"
     },
-    var.tags
+    local.tags
   )
+
+  lifecycle {
+    ignore_changes = [
+      tags["elasticbeanstalk:shared-elb-environment-count"]
+    ]
+  }
 }

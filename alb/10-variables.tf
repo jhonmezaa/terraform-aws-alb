@@ -50,8 +50,20 @@ variable "use_region_prefix" {
   default     = true
 }
 
+variable "region" {
+  description = "AWS region where resources will be managed (provider v6 per-resource region). Defaults to the provider region. Also used to derive the region prefix."
+  type        = string
+  default     = null
+}
+
+variable "tags_common" {
+  description = "Common tags to apply to all resources."
+  type        = map(string)
+  default     = {}
+}
+
 variable "tags" {
-  description = "Additional tags to apply to all resources."
+  description = "Additional tags to apply to all resources. Kept for backward compatibility; prefer `tags_common`. Merged on top of `tags_common`."
   type        = map(string)
   default     = {}
 }
@@ -61,9 +73,20 @@ variable "tags" {
 # =============================================================================
 
 variable "name" {
-  description = "Name of the load balancer. If not provided, follows naming convention: {region_prefix}-{alb|nlb|gwlb}-{account_name}-{project_name}"
+  description = "Name of the load balancer. If not provided, follows naming convention: {region_prefix}-{alb|nlb|gwlb}-{account_name}-{project_name} (truncated to 32 chars)."
   type        = string
   default     = null
+}
+
+variable "lb_name_prefix" {
+  description = "Creates a unique load balancer name beginning with this prefix (max 6 chars). Conflicts with `name` and takes precedence over the naming convention."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.lb_name_prefix == null || length(coalesce(var.lb_name_prefix, "x")) <= 6
+    error_message = "lb_name_prefix no puede tener más de 6 caracteres."
+  }
 }
 
 variable "load_balancer_type" {
@@ -208,6 +231,26 @@ variable "enforce_security_group_inbound_rules_on_private_link_traffic" {
   default     = null
 }
 
+variable "enable_prefix_for_ipv6_source_nat" {
+  description = "Whether to use an IPv6 prefix from each subnet for source NAT (NLB with UDP listeners only): on or off."
+  type        = string
+  default     = null
+}
+
+variable "secondary_ips_auto_assigned_per_subnet" {
+  description = "Number of secondary IP addresses to auto-assign per subnet for source NAT (NLB only)."
+  type        = number
+  default     = null
+}
+
+variable "ipam_pools" {
+  description = "IPAM pools to use with the load balancer."
+  type = object({
+    ipv4_ipam_pool_id = string
+  })
+  default = null
+}
+
 variable "minimum_load_balancer_capacity" {
   description = "Minimum load balancer capacity configuration."
   type = object({
@@ -232,6 +275,16 @@ variable "access_logs" {
 
 variable "connection_logs" {
   description = "Connection log configuration for the load balancer."
+  type = object({
+    bucket  = string
+    enabled = optional(bool, true)
+    prefix  = optional(string)
+  })
+  default = null
+}
+
+variable "health_check_logs" {
+  description = "Health check log configuration for the load balancer (ALB only)."
   type = object({
     bucket  = string
     enabled = optional(bool, true)
@@ -286,7 +339,7 @@ variable "listeners" {
     - additional_certificate_arns: List of additional SSL certificate ARNs
     - alpn_policy: ALPN policy for TLS listeners
     - tcp_idle_timeout_seconds: TCP idle timeout (TCP protocol only)
-    - mutual_authentication: Mutual TLS configuration { mode, trust_store_arn, ... }
+    - mutual_authentication: Mutual TLS configuration { mode, trust_store_key or trust_store_arn, advertise_trust_store_ca_names, ignore_client_certificate_expiry }
     - tags: Additional tags for this listener
 
     Default action (choose one):
@@ -296,9 +349,17 @@ variable "listeners" {
     - fixed_response: { content_type, message_body, status_code }
     - authenticate_cognito: { user_pool_arn, user_pool_client_id, user_pool_domain, ... }
     - authenticate_oidc: { authorization_endpoint, client_id, client_secret, issuer, token_endpoint, user_info_endpoint, ... }
+    - jwt_validation: { issuer, jwks_endpoint, additional_claim = [{ format, name, values }] }
 
     Nested rules:
-    - rules: Map of listener rules, each with actions and conditions
+    - rules: Map of listener rules. Each rule supports:
+      - priority
+      - actions: list of { type = forward | weighted_forward | redirect | fixed_response | authenticate_cognito | authenticate_oidc | jwt_validation, ... }
+      - conditions: list of { host_header | path_pattern | http_header (values or regex_values) | http_request_method | query_string | source_ip }
+      - transform: map of { type (defaults to key: host-header-rewrite | url-rewrite), host_header_rewrite_config = { rewrite = { regex, replace } }, url_rewrite_config = { rewrite = { regex, replace } } }
+      - tags
+
+    GWLB: listeners with protocol GENEVE omit port/protocol automatically.
 
     CORS and Security Headers (ALB only):
     - routing_http_response_access_control_allow_*
@@ -306,8 +367,9 @@ variable "listeners" {
     - routing_http_response_strict_transport_security_header_value
     - routing_http_response_x_content_type_options_header_value
     - routing_http_response_x_frame_options_header_value
+    (ignored on non HTTP/HTTPS listeners)
 
-    mTLS Headers (HTTPS only):
+    mTLS Headers (HTTPS only, ignored otherwise):
     - routing_http_request_x_amzn_mtls_clientcert_*
     - routing_http_request_x_amzn_tls_*
   EOT
@@ -324,7 +386,7 @@ variable "target_groups" {
     Map of target group configurations. Each key is a unique identifier.
 
     Each target group supports:
-    - name/name_prefix: Target group name (auto-generated if not specified)
+    - name/name_prefix: Target group name (auto-generated if not specified: {region_prefix}-tg-{account_name}-{project_name}-{key}, truncated to 32 chars). name_prefix takes precedence over name.
     - port: Target port (defaults to var.default_port, null for Lambda)
     - protocol: Target protocol (defaults to var.default_protocol, null for Lambda)
     - protocol_version: HTTP/1.1, HTTP/2, or gRPC
@@ -370,6 +432,10 @@ variable "target_groups" {
     Proxy:
     - proxy_protocol_v2: Enable proxy protocol v2
     - preserve_client_ip: Preserve client IP
+
+    Other:
+    - target_control_port: Port used by the target control agent
+    - quic_server_id: QUIC server ID for the primary attachment (QUIC/TCP_QUIC target groups)
   EOT
   type        = any
   default     = {}
@@ -388,6 +454,8 @@ variable "additional_target_group_attachments" {
     - target_id: Target ID (instance ID, IP address, Lambda ARN)
     - port: Port for the target (optional)
     - availability_zone: AZ for cross-zone targets (optional)
+    - target_type: Override target type for port handling (optional, defaults to the target group's target_type; port is ignored for lambda)
+    - quic_server_id: QUIC server ID (optional)
   EOT
   type        = any
   default     = null
@@ -413,10 +481,22 @@ variable "create_security_group" {
   default     = true
 }
 
+variable "create_network_lb_security_group" {
+  description = "Whether to also create the managed security group for network load balancers. Security groups can only be attached to an NLB at creation time, so enabling this on an existing NLB forces its replacement."
+  type        = bool
+  default     = false
+}
+
 variable "security_group_name" {
-  description = "Name of the managed security group. If not provided, follows naming convention."
+  description = "Name of the managed security group. If not provided, follows naming convention: {region_prefix}-sg-{alb|nlb}-{account_name}-{project_name}"
   type        = string
   default     = null
+}
+
+variable "security_group_use_name_prefix" {
+  description = "Whether to use the security group name as a prefix (name_prefix) instead of an exact name. Changing this forces recreation of the security group."
+  type        = bool
+  default     = false
 }
 
 variable "security_group_description" {
@@ -436,11 +516,12 @@ variable "security_group_ingress_rules" {
     Map of ingress rules for the managed security group.
 
     Each rule supports:
+    - name: Value for the Name tag (defaults to {sg_name}-ingress-{key})
     - description: Rule description
     - cidr_ipv4: IPv4 CIDR block
     - cidr_ipv6: IPv6 CIDR block
-    - from_port: Start port
-    - to_port: End port
+    - from_port: Start port (defaults to to_port)
+    - to_port: End port (defaults to from_port)
     - ip_protocol: Protocol (default: tcp)
     - prefix_list_id: Prefix list ID
     - referenced_security_group_id: Source security group ID
@@ -473,6 +554,9 @@ variable "route53_records" {
     - name: Record name (defaults to the map key)
     - type: Record type: A, AAAA, or CNAME (default: A)
     - evaluate_target_health: Whether to evaluate target health (default: true)
+    - allow_overwrite: Allow overwriting an existing record (optional)
+
+    Tip: create both A and AAAA aliases for dualstack load balancers.
   EOT
   type        = any
   default     = {}
@@ -492,4 +576,26 @@ variable "web_acl_arn" {
   description = "ARN of the WAFv2 Web ACL to associate."
   type        = string
   default     = null
+}
+
+# =============================================================================
+# Trust Stores (mTLS)
+# =============================================================================
+
+variable "trust_stores" {
+  description = <<-EOT
+    Map of trust stores for mutual TLS authentication. Reference them from a listener with
+    `mutual_authentication = { mode = "verify", trust_store_key = "<key>" }`.
+
+    Each trust store supports:
+    - name: Trust store name (default: {region_prefix}-ts-{account_name}-{project_name}-{key}, truncated to 32 chars)
+    - name_prefix: Unique name prefix (max 6 chars), takes precedence over name
+    - ca_certificates_bundle_s3_bucket: S3 bucket holding the CA certificates bundle (required)
+    - ca_certificates_bundle_s3_key: S3 key of the CA certificates bundle (required)
+    - ca_certificates_bundle_s3_object_version: S3 object version (optional)
+    - revocation_lists: Map of CRLs { revocations_s3_bucket, revocations_s3_key, revocations_s3_object_version }
+    - tags: Additional tags
+  EOT
+  type        = any
+  default     = {}
 }

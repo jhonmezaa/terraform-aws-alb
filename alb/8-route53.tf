@@ -5,9 +5,10 @@
 resource "aws_route53_record" "this" {
   for_each = { for k, v in var.route53_records : k => v if local.create }
 
-  zone_id = each.value.zone_id
-  name    = lookup(each.value, "name", each.key)
-  type    = lookup(each.value, "type", "A")
+  zone_id         = each.value.zone_id
+  name            = lookup(each.value, "name", each.key)
+  type            = lookup(each.value, "type", "A")
+  allow_overwrite = lookup(each.value, "allow_overwrite", null)
 
   alias {
     name                   = aws_lb.this[0].dns_name
