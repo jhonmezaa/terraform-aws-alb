@@ -76,6 +76,11 @@ variable "name" {
   description = "Name of the load balancer. If not provided, follows naming convention: {region_prefix}-{alb|nlb|gwlb}-{account_name}-{project_name} (truncated to 32 chars)."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.name == null || can(regex("^[a-zA-Z0-9]([a-zA-Z0-9-]{0,30}[a-zA-Z0-9])?$", var.name))
+    error_message = "name debe tener entre 1 y 32 caracteres alfanuméricos o guiones, y no puede empezar ni terminar por guion."
+  }
 }
 
 variable "lb_name_prefix" {
@@ -344,7 +349,7 @@ variable "listeners" {
 
     Default action (choose one):
     - forward: { target_group_key or target_group_arn }
-    - weighted_forward: { target_groups = [{ target_group_key/arn, weight }], stickiness = { duration, enabled } }
+    - weighted_forward: { target_groups = [{ target_group_key, or arn / target_group_arn, weight }], stickiness = { duration, enabled } }
     - redirect: { host, path, port, protocol, query, status_code }
     - fixed_response: { content_type, message_body, status_code }
     - authenticate_cognito: { user_pool_arn, user_pool_client_id, user_pool_domain, ... }
@@ -491,6 +496,11 @@ variable "security_group_name" {
   description = "Name of the managed security group. If not provided, follows naming convention: {region_prefix}-sg-{alb|nlb}-{account_name}-{project_name}"
   type        = string
   default     = null
+
+  validation {
+    condition     = var.security_group_name == null || !can(regex("^(?i)sg-", coalesce(var.security_group_name, "x")))
+    error_message = "security_group_name no puede empezar por \"sg-\" (AWS lo rechaza)."
+  }
 }
 
 variable "security_group_use_name_prefix" {
