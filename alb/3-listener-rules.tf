@@ -38,7 +38,7 @@ resource "aws_lb_listener_rule" "this" {
           for_each = action.value.target_groups
 
           content {
-            arn    = lookup(target_group.value, "target_group_key", null) != null ? aws_lb_target_group.this[target_group.value.target_group_key].arn : target_group.value.arn
+            arn    = lookup(target_group.value, "target_group_key", null) != null ? aws_lb_target_group.this[target_group.value.target_group_key].arn : try(coalesce(lookup(target_group.value, "target_group_arn", null), lookup(target_group.value, "arn", null)), null)
             weight = lookup(target_group.value, "weight", 1)
           }
         }
@@ -274,11 +274,11 @@ resource "aws_lb_listener_rule" "this" {
   }
 
   tags = merge(
+    local.tags,
+    lookup(each.value, "tags", {}),
     {
       Name      = "${local.lb_name}-rule-${each.value.rule_key}"
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    lookup(each.value, "tags", {})
+    }
   )
 }

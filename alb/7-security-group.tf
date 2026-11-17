@@ -17,12 +17,12 @@ resource "aws_security_group" "this" {
   }
 
   tags = merge(
+    local.tags,
+    var.security_group_tags,
     {
       Name      = local.sg_name
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    var.security_group_tags
+    }
   )
 }
 
@@ -51,12 +51,12 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   referenced_security_group_id = lookup(each.value, "referenced_security_group_id", null)
 
   tags = merge(
+    local.tags,
+    lookup(each.value, "tags", {}),
     {
       Name      = coalesce(lookup(each.value, "name", null), "${local.sg_name}-ingress-${each.key}")
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    lookup(each.value, "tags", {})
+    }
   )
 }
 
@@ -85,11 +85,11 @@ resource "aws_vpc_security_group_egress_rule" "this" {
   referenced_security_group_id = lookup(each.value, "referenced_security_group_id", null)
 
   tags = merge(
+    local.tags,
+    lookup(each.value, "tags", {}),
     {
       Name      = coalesce(lookup(each.value, "name", null), "${local.sg_name}-egress-${each.key}")
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    lookup(each.value, "tags", {})
+    }
   )
 }
