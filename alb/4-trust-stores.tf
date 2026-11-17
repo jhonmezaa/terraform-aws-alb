@@ -16,12 +16,12 @@ resource "aws_lb_trust_store" "this" {
   ca_certificates_bundle_s3_object_version = lookup(each.value, "ca_certificates_bundle_s3_object_version", null)
 
   tags = merge(
+    local.tags,
+    lookup(each.value, "tags", {}),
     {
       Name      = local.trust_store_names[each.key]
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    lookup(each.value, "tags", {})
+    }
   )
 }
 

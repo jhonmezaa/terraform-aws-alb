@@ -129,11 +129,11 @@ resource "aws_lb" "this" {
   }
 
   tags = merge(
+    local.tags,
     {
       Name      = local.lb_name
       ManagedBy = "Terraform"
-    },
-    local.tags
+    }
   )
 
   lifecycle {

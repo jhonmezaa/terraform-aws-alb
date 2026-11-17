@@ -60,7 +60,7 @@ resource "aws_lb_listener" "this" {
           for_each = default_action.value.target_groups
 
           content {
-            arn    = lookup(target_group.value, "target_group_key", null) != null ? aws_lb_target_group.this[target_group.value.target_group_key].arn : target_group.value.arn
+            arn    = lookup(target_group.value, "target_group_key", null) != null ? aws_lb_target_group.this[target_group.value.target_group_key].arn : try(coalesce(lookup(target_group.value, "target_group_arn", null), lookup(target_group.value, "arn", null)), null)
             weight = lookup(target_group.value, "weight", 1)
           }
         }
@@ -222,12 +222,12 @@ resource "aws_lb_listener" "this" {
   routing_http_response_x_frame_options_header_value                  = contains(["HTTP", "HTTPS"], local.listener_protocols[each.key]) ? lookup(each.value, "routing_http_response_x_frame_options_header_value", null) : null
 
   tags = merge(
+    local.tags,
+    lookup(each.value, "tags", {}),
     {
       Name      = "${local.lb_name}-${each.key}"
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    lookup(each.value, "tags", {})
+    }
   )
 
   depends_on = [aws_lb_target_group.this, aws_lb_trust_store.this]

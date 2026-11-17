@@ -127,11 +127,11 @@ resource "aws_lb_target_group" "this" {
   }
 
   tags = merge(
+    local.tags,
+    lookup(each.value, "tags", {}),
     {
       Name      = local.target_group_names[each.key]
       ManagedBy = "Terraform"
-    },
-    local.tags,
-    lookup(each.value, "tags", {})
+    }
   )
 }
