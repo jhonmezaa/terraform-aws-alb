@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.2.0] - 2026-11-17
+
+### Added
+
+- Weighted forward target groups (listener default action and listener rules) accept `target_group_arn` as an alias of `arn`, matching the upstream module's attribute name
+- Validation of `name` (1-32 alphanumeric characters or hyphens, not starting or ending with a hyphen) and of `security_group_name` (cannot start with `sg-`), so invalid names fail at plan time instead of at apply time
+
+### Changed
+
+- Tags are now merged as `merge(tags_common, tags, <resource tags>, { Name, ManagedBy })` on every resource: `Name` and `ManagedBy = "Terraform"` can no longer be overridden by `tags_common`, `tags` or per-resource `tags`
+- Removed the unused `aws_caller_identity` data source
+- README: `source` examples use `github.com/jhonmezaa/terraform-aws-alb//alb?ref=v1.2.0`, the inputs table lists every variable, and the tag merge order and sensitive listener outputs are documented
+
+### Fixed
+
+- Lambda target groups without `target_id` (for example, targets registered through `additional_target_group_attachments`) no longer fail with a missing attribute error when building the Lambda permission; the permission is only created when `target_id` is set
+- `complete-alb` example: the `listener_rules` output is marked `sensitive`, since it contains the OIDC client secret; `terraform plan` failed with "Output refers to sensitive values"
+
+### Upgrade notes
+
+- If you set a `Name` or `ManagedBy` tag through `tags_common`, `tags`, `security_group_tags` or a per-resource `tags` map, that value is now replaced by the module's generated `Name` / `ManagedBy = "Terraform"` (tag-only in-place update, no resource replacement). Use `name`, `security_group_name`, `target_groups.<key>.name` or the security group rule `name` to control the `Name` tag
+- A Lambda target group with `attach_lambda_permission = true` but no `target_id` used to fail at plan time; it now plans without creating `aws_lambda_permission`. Grant the permission yourself in that case
+
 ## [v1.1.2] - 2026-10-27
 
 ### Changed

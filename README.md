@@ -100,7 +100,7 @@ Load balancer, target group and trust store names are truncated to 32 characters
 
 ### Tags
 
-All resources get `Name` and `ManagedBy = "Terraform"` tags, merged with `tags_common` and resource-specific tags. `tags` is still supported for backward compatibility and is merged on top of `tags_common`.
+Tags are built as `merge(tags_common, tags, <resource-specific tags>, { Name = <name>, ManagedBy = "Terraform" })`: `Name` and `ManagedBy` always win. `tags` is still supported for backward compatibility and is merged on top of `tags_common`.
 
 ## Usage
 
@@ -108,7 +108,7 @@ All resources get `Name` and `ManagedBy = "Terraform"` tags, merged with `tags_c
 
 ```hcl
 module "alb" {
-  source = "./terraform-aws-alb/alb"
+  source = "github.com/jhonmezaa/terraform-aws-alb//alb?ref=v1.2.0"
 
   account_name = "prod"
   project_name = "myapp"
@@ -160,7 +160,7 @@ module "alb" {
 
 ```hcl
 module "alb" {
-  source = "./terraform-aws-alb/alb"
+  source = "github.com/jhonmezaa/terraform-aws-alb//alb?ref=v1.2.0"
 
   account_name = "prod"
   project_name = "myapp"
@@ -200,7 +200,7 @@ module "alb" {
 
 ```hcl
 module "nlb" {
-  source = "./terraform-aws-alb/alb"
+  source = "github.com/jhonmezaa/terraform-aws-alb//alb?ref=v1.2.0"
 
   account_name       = "prod"
   project_name       = "services"
@@ -233,7 +233,7 @@ module "nlb" {
 
 ```hcl
 module "alb" {
-  source = "./terraform-aws-alb/alb"
+  source = "github.com/jhonmezaa/terraform-aws-alb//alb?ref=v1.2.0"
 
   account_name = "prod"
   project_name = "myapp"
@@ -316,34 +316,68 @@ Features added in v1.1.0 (JWT validation, rule transforms, `regex_values`, healt
 
 ## Inputs
 
-| Name                               | Description                                  | Type           | Default         |
-| ---------------------------------- | -------------------------------------------- | -------------- | --------------- |
-| `account_name`                     | Account name for resource naming             | `string`       | -               |
-| `project_name`                     | Project name for resource naming             | `string`       | -               |
-| `create`                           | Controls if resources should be created      | `bool`         | `true`          |
-| `name`                             | Load balancer name (auto-generated if null)  | `string`       | `null`          |
-| `load_balancer_type`               | Type: application, network, gateway          | `string`       | `"application"` |
-| `internal`                         | Internal load balancer                       | `bool`         | `false`         |
-| `subnets`                          | Subnet IDs                                   | `list(string)` | `null`          |
-| `vpc_id`                           | VPC ID for target groups and security group  | `string`       | `null`          |
-| `listeners`                        | Map of listener configurations               | `any`          | `{}`            |
-| `target_groups`                    | Map of target group configurations           | `any`          | `{}`            |
-| `enable_deletion_protection`       | Enable deletion protection                   | `bool`         | `true`          |
-| `enable_cross_zone_load_balancing` | Enable cross-zone load balancing             | `bool`         | `true`          |
-| `create_security_group`            | Create managed security group                | `bool`         | `true`          |
-| `security_group_ingress_rules`     | Ingress rules for managed SG                 | `any`          | `{}`            |
-| `security_group_egress_rules`      | Egress rules for managed SG                  | `any`          | `{}`            |
-| `route53_records`                  | Route53 alias records                        | `any`          | `{}`            |
-| `associate_web_acl`                | Associate WAFv2 Web ACL                      | `bool`         | `false`         |
-| `web_acl_arn`                      | WAFv2 Web ACL ARN                            | `string`       | `null`          |
-| `region`                           | Region for all resources (provider v6)       | `string`       | `null`          |
-| `use_region_prefix`                | Include region prefix in names               | `bool`         | `true`          |
-| `trust_stores`                     | Map of trust stores (mTLS) with CRLs         | `any`          | `{}`            |
-| `health_check_logs`                | Health check logs configuration (ALB)        | `object`       | `null`          |
-| `tags_common`                      | Common tags for all resources                | `map(string)`  | `{}`            |
-| `tags`                             | Additional tags (legacy, prefer tags_common) | `map(string)`  | `{}`            |
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| `create` | Controls if resources should be created | `bool` | `true` | no |
+| `account_name` | Account name for resource naming | `string` | n/a | yes |
+| `project_name` | Project name for resource naming | `string` | n/a | yes |
+| `region_prefix` | Region prefix for naming | `string` | `null` | no |
+| `use_region_prefix` | Whether to include the region prefix in resource names | `bool` | `true` | no |
+| `region` | AWS region where resources will be managed (provider v6 per-resource region) | `string` | `null` | no |
+| `tags_common` | Common tags to apply to all resources | `map(string)` | `{}` | no |
+| `tags` | Additional tags to apply to all resources | `map(string)` | `{}` | no |
+| `name` | Name of the load balancer | `string` | `null` | no |
+| `lb_name_prefix` | Creates a unique load balancer name beginning with this prefix (max 6 chars) | `string` | `null` | no |
+| `load_balancer_type` | Type of load balancer to create: application, network, or gateway | `string` | `"application"` | no |
+| `internal` | If true, the load balancer will be internal (not internet-facing) | `bool` | `false` | no |
+| `subnets` | List of subnet IDs to attach to the load balancer | `list(string)` | `null` | no |
+| `subnet_mapping` | List of subnet mapping configurations with optional Elastic IP allocations | `list(object)` | `null` | no |
+| `security_groups` | List of security group IDs to attach to the ALB (in addition to the managed security group) | `list(string)` | `[]` | no |
+| `ip_address_type` | Type of IP addresses used by the subnets: ipv4 or dualstack | `string` | `null` | no |
+| `customer_owned_ipv4_pool` | ID of the customer owned IPv4 address pool | `string` | `null` | no |
+| `enable_cross_zone_load_balancing` | Enable cross-zone load balancing | `bool` | `true` | no |
+| `enable_deletion_protection` | Enable deletion protection on the load balancer | `bool` | `true` | no |
+| `drop_invalid_header_fields` | Whether HTTP headers with header fields that are not valid are removed by the load balancer (ALB only) | `bool` | `true` | no |
+| `enable_http2` | Whether HTTP/2 is enabled on the ALB | `bool` | `null` | no |
+| `idle_timeout` | Time in seconds that the connection is allowed to be idle (ALB only) | `number` | `null` | no |
+| `client_keep_alive` | Client keep alive value in seconds | `number` | `null` | no |
+| `preserve_host_header` | Whether the ALB should preserve the Host header in the HTTP request (ALB only) | `bool` | `null` | no |
+| `xff_header_processing_mode` | How the ALB processes the X-Forwarded-For header: append, preserve, or remove (ALB only) | `string` | `null` | no |
+| `enable_xff_client_port` | Whether the X-Forwarded-For header should preserve the source port (ALB only) | `bool` | `null` | no |
+| `enable_tls_version_and_cipher_suite_headers` | Whether the ALB adds TLS version and cipher suite headers (ALB only) | `bool` | `null` | no |
+| `desync_mitigation_mode` | How the ALB handles requests that might pose a security risk: monitor, defensive, or strictest (ALB only) | `string` | `null` | no |
+| `enable_waf_fail_open` | Whether to route requests to targets if the WAF is unavailable (ALB only) | `bool` | `null` | no |
+| `enable_zonal_shift` | Whether zonal shift is enabled | `bool` | `null` | no |
+| `dns_record_client_routing_policy` | How traffic is distributed among the load balancer Availability Zones | `string` | `null` | no |
+| `enforce_security_group_inbound_rules_on_private_link_traffic` | Whether inbound security group rules are enforced for traffic originating from a PrivateLink (NLB only) | `string` | `null` | no |
+| `enable_prefix_for_ipv6_source_nat` | Whether to use an IPv6 prefix from each subnet for source NAT (NLB with UDP listeners only): on or off | `string` | `null` | no |
+| `secondary_ips_auto_assigned_per_subnet` | Number of secondary IP addresses to auto-assign per subnet for source NAT (NLB only) | `number` | `null` | no |
+| `ipam_pools` | IPAM pools to use with the load balancer | `object` | `null` | no |
+| `minimum_load_balancer_capacity` | Minimum load balancer capacity configuration | `object` | `null` | no |
+| `access_logs` | Access log configuration for the load balancer | `object` | `null` | no |
+| `connection_logs` | Connection log configuration for the load balancer | `object` | `null` | no |
+| `health_check_logs` | Health check log configuration for the load balancer (ALB only) | `object` | `null` | no |
+| `timeouts` | Timeout configuration for the load balancer | `object` | `null` | no |
+| `default_port` | Default port used for listeners and target groups when not specified | `number` | `80` | no |
+| `default_protocol` | Default protocol used for listeners and target groups when not specified | `string` | `"HTTP"` | no |
+| `listeners` | Map of listener configurations | `any` | `{}` | no |
+| `target_groups` | Map of target group configurations | `any` | `{}` | no |
+| `additional_target_group_attachments` | Map of additional target group attachments | `any` | `null` | no |
+| `vpc_id` | VPC ID for the target groups and security group | `string` | `null` | no |
+| `create_security_group` | Whether to create a managed security group for the ALB | `bool` | `true` | no |
+| `create_network_lb_security_group` | Whether to also create the managed security group for network load balancers | `bool` | `false` | no |
+| `security_group_name` | Name of the managed security group | `string` | `null` | no |
+| `security_group_use_name_prefix` | Whether to use the security group name as a prefix (name_prefix) instead of an exact name | `bool` | `false` | no |
+| `security_group_description` | Description of the managed security group | `string` | `null` | no |
+| `security_group_tags` | Additional tags for the managed security group | `map(string)` | `{}` | no |
+| `security_group_ingress_rules` | Map of ingress rules for the managed security group | `any` | `{}` | no |
+| `security_group_egress_rules` | Map of egress rules for the managed security group | `any` | `{}` | no |
+| `route53_records` | Map of Route53 alias records pointing to the load balancer | `any` | `{}` | no |
+| `associate_web_acl` | Whether to associate a WAFv2 Web ACL with the load balancer | `bool` | `false` | no |
+| `web_acl_arn` | ARN of the WAFv2 Web ACL to associate | `string` | `null` | no |
+| `trust_stores` | Map of trust stores for mutual TLS authentication | `any` | `{}` | no |
 
-See [10-variables.tf](alb/10-variables.tf) for the complete list of variables.
+Nested attributes of the `any`-typed maps (`listeners`, `target_groups`, `trust_stores`, security group rules, `route53_records`) are documented in the variable descriptions in [10-variables.tf](alb/10-variables.tf).
 
 ## Outputs
 
@@ -367,6 +401,8 @@ See [10-variables.tf](alb/10-variables.tf) for the complete list of variables.
 | `trust_store_arns`         | Map of trust store keys to ARNs           |
 | `trust_store_revocations`  | Map of trust store revocation lists       |
 | `route53_records`          | Map of Route53 records                    |
+
+`listeners` and `listener_rules` contain the OIDC `client_secret` when `authenticate_oidc` is used, so Terraform treats them as sensitive: mark any root module output that re-exports them with `sensitive = true`.
 
 ## Module Structure
 
