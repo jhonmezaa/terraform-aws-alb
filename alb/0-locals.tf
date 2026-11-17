@@ -172,9 +172,11 @@ locals {
   # Lambda Target Groups (need Lambda permission)
   # =============================================================================
 
+  # Only target groups with a target_id: the permission is granted on that function
+
   lambda_target_groups = {
     for k, v in var.target_groups : k => v
-    if lookup(v, "target_type", "instance") == "lambda" && lookup(v, "attach_lambda_permission", true)
+    if lookup(v, "target_type", "instance") == "lambda" && lookup(v, "attach_lambda_permission", true) && lookup(v, "target_id", null) != null
   }
 
   # =============================================================================

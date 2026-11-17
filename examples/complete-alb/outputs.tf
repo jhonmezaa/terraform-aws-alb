@@ -19,8 +19,9 @@ output "listeners" {
 }
 
 output "listener_rules" {
-  description = "Map of listener rules created."
+  description = "Map of listener rules created. Sensitive because the OIDC rule carries the client secret."
   value       = module.alb.listener_rules
+  sensitive   = true
 }
 
 output "target_groups" {
